@@ -27,6 +27,7 @@
     "production",
     "protobufs",
     "query-subscriptions",
+    "queue",
     "saga",
     "schedules",
     "scratchpad",
