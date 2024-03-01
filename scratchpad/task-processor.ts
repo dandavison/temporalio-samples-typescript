@@ -130,20 +130,57 @@ const { processSingleTask } = proxyActivities<typeof activities>({
   startToCloseTimeout: '1 minute',
 });
 
+class Condition {
+  private queue: (() => void)[];
+
+  constructor() {
+    this.queue = [];
+  }
+
+  // Add self to queue and wait if not first
+  async wait(): Promise<void> {
+    const first = this.queue.length == 0;
+    const self = new Promise<void>((resolve) => {
+      this.queue.push(resolve);
+    });
+    if (!first) {
+      await self;
+    }
+  }
+
+  // Remove self from queue and advance next
+  async notify(): Promise<void> {
+    this.queue.shift();
+    if (this.queue.length > 0) {
+      this.queue[0]();
+    }
+  }
+}
+
 export async function entityWorkflowWithUpdate(transportedState?: SerializedState): Promise<void> {
-  const handleIncomingTask = (incomingTask: TaskInput): Promise<TaskCompletion> => {
+  const cond = new Condition();
+
+  const handleIncomingTask = async (incomingTask: TaskInput): Promise<TaskCompletion> => {
     let task = taskMap.get(incomingTask.uuid);
     if (task) {
       // Task is already known, maybe even already completed
       taskMap.delete(incomingTask.uuid);
       return task.promise;
     }
+    await cond.wait();
 
     task = new QueuedTask(incomingTask, undefined);
+
+    try {
+      task.resolve(await processSingleTask(task.input!));
+    } catch (e) {
+      task.reject(e as Error);
+    }
 
     taskMap.set(task.uuid, task);
     taskQueue.push(task.uuid);
 
+    await cond.notify();
     return task.promise;
   };
 
@@ -158,18 +195,7 @@ export async function entityWorkflowWithUpdate(transportedState?: SerializedStat
 
   wf.setHandler(submitTaskUpdate, handleIncomingTask);
 
-  while (!wf.workflowInfo().continueAsNewSuggested) {
-    await wf.condition(() => taskQueue.length > 0);
-    const task = taskMap.get(taskQueue.shift()!);
-    if (task === undefined) throw new Error();
-
-    // Process request as appropriate
-    try {
-      task.resolve(await processSingleTask(task.input!));
-    } catch (e) {
-      task.reject(e as Error);
-    }
-  }
+  await wf.condition(() => wf.workflowInfo().continueAsNewSuggested);
 
   // Note that we don't need to transport taskQueue, as JS's Map guarantees that
   // iteration ordering match intertion order.
