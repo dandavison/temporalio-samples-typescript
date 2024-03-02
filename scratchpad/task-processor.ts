@@ -20,7 +20,7 @@ interface TaskError {
 
 interface TaskCompletion {
   uuid: string;
-  status: 'succeeded' | 'failed' | 'retry';
+  status: 'in-progress' | 'succeeded' | 'failed' | 'retry';
   result?: TaskResult;
   error?: TaskError;
 }
@@ -169,19 +169,18 @@ export async function entityWorkflowWithUpdate(transportedState?: SerializedStat
     }
     await cond.wait();
 
-    task = new QueuedTask(incomingTask, undefined);
-
+    const completion: TaskCompletion = { uuid: incomingTask.uuid, status: 'in-progress' };
     try {
-      task.resolve(await processSingleTask(task.input!));
+      completion.status = 'succeeded';
+      completion.result = await processSingleTask(incomingTask);
     } catch (e) {
-      task.reject(e as Error);
+      completion.error = e;
+      completion.status = 'failed';
+      console.error(`Error while processing task: ${e}`);
     }
 
-    taskMap.set(task.uuid, task);
-    taskQueue.push(task.uuid);
-
     await cond.notify();
-    return task.promise;
+    return completion;
   };
 
   if (transportedState) {
