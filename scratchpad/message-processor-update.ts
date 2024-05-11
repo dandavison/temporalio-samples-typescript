@@ -5,19 +5,46 @@ import * as wo from '@temporalio/worker';
 const workflowId = 'scratchpad';
 const taskQueue = 'scratchpad';
 
-const myUpdate = wf.defineUpdate<string, [string]>('myUpdate');
+const activities = {
+  async processMessage(msg: string): Promise<void> {
+    console.log(msg + '-processed');
+  },
+};
+
+const { processMessage } = wf.proxyActivities<typeof activities>({
+  startToCloseTimeout: '1 minute',
+});
+
+const myVoidUpdate = wf.defineUpdate<void, [string]>('myUpdate');
+
+// This function would be implemented in the SDK
+function sdkSetHandlerActivity(
+  updateDef: cl.UpdateDefinition<void, [string], string>,
+  activity: (msg: string) => Promise<void>
+) {
+  wf.setHandler(updateDef, async (msg: string): Promise<void> => {
+    activity(msg);
+  });
+}
 
 export async function workflow(): Promise<void> {
-  let continueAsNewSuggested = false;
-  wf.setHandler(myUpdate, (arg: string) => {
-    if (wf.workflowInfo().continueAsNewSuggested) {
-      continueAsNewSuggested = true;
-    }
-    return arg + '-processed';
-  });
-  await wf.condition(() => continueAsNewSuggested);
-  wf.log.warn('continueAsNewSuggested: exiting workflow');
+  sdkSetHandlerActivity(myVoidUpdate, processMessage);
+  await wf.condition(() => false);
 }
+
+// const myUpdate = wf.defineUpdate<string, [string]>('myUpdate');
+
+// export async function workflow0(): Promise<void> {
+//   let continueAsNewSuggested = false;
+//   wf.setHandler(myUpdate, (arg: string) => {
+//     if (wf.workflowInfo().continueAsNewSuggested) {
+//       continueAsNewSuggested = true;
+//     }
+//     return arg + '-processed';
+//   });
+//   await wf.condition(() => continueAsNewSuggested);
+//   wf.log.warn('continueAsNewSuggested: exiting workflow');
+// }
 
 async function starter(client: cl.Client): Promise<void> {
   const handle = await client.workflow
@@ -42,6 +69,8 @@ async function starter(client: cl.Client): Promise<void> {
 }
 
 // ----------------------------------------------------------------------------------------------
+
+// Start server with --dynamic-config-value limit.historyCount.suggestContinueAsNew=XXX
 
 async function main(): Promise<void> {
   const worker = await wo.Worker.create({
