@@ -8,8 +8,15 @@ const taskQueue = 'scratchpad';
 const myUpdate = wf.defineUpdate<string, [string]>('myUpdate');
 
 export async function workflow(): Promise<void> {
-  wf.setHandler(myUpdate, (arg: string) => arg + '-processed');
-  await wf.condition(() => false);
+  let continueAsNewSuggested = false;
+  wf.setHandler(myUpdate, (arg: string) => {
+    if (wf.workflowInfo().continueAsNewSuggested) {
+      continueAsNewSuggested = true;
+    }
+    return arg + '-processed';
+  });
+  await wf.condition(() => continueAsNewSuggested);
+  wf.log.warn('continueAsNewSuggested: exiting workflow');
 }
 
 async function starter(client: cl.Client): Promise<void> {
@@ -25,7 +32,12 @@ async function starter(client: cl.Client): Promise<void> {
     });
   let i = 0;
   for (;;) {
-    console.log(await handle.executeUpdate('myUpdate', { args: [`${++i}`] }));
+    try {
+      console.log(await handle.executeUpdate('myUpdate', { args: [`${++i}`] }));
+    } catch (err) {
+      console.error(err);
+      break;
+    }
   }
 }
 
@@ -51,3 +63,4 @@ if (!wf.inWorkflowContext()) {
     process.exit(1);
   });
 }
+// hello
