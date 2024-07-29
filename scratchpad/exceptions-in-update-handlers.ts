@@ -13,6 +13,7 @@ export async function workflow(name: string): Promise<string> {
   wf.setHandler(myUpdate, async () => {
     await wf.condition(() => workflowHasStarted);
     updateHasStarted = true;
+    throw new wf.ApplicationFailure('update handler threw ApplicationFailure');
   });
   await wf.condition(() => updateHasStarted);
   return 'wf-result';
@@ -25,9 +26,12 @@ async function starter(client: cl.Client): Promise<void> {
     args: ['Temporal'],
     workflowIdReusePolicy: cl.WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING,
   });
-  const updResult = await handle.executeUpdate(myUpdate);
-  console.log(`updResult: ${await handle.result()}`);
-
+  try {
+    await handle.executeUpdate(myUpdate);
+    console.log(`updResult: ${await handle.result()}`);
+  } catch (err) {
+    console.error(`Error on executeUpdate: ${err}`);
+  }
   console.log(`wfResult: ${await handle.result()}`);
 }
 
