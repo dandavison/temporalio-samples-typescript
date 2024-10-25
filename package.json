@@ -12,7 +12,12 @@
     "update-toc": "doctoc README.md"
   },
   "devDependencies": {
-    "@temporalio/client": "^1.11.2",
+    "@temporalio/activity": "file:~/src/temporalio/sdk-typescript/packages/activity",
+    "@temporalio/client": "file:~/src/temporalio/sdk-typescript/packages/client",
+    "@temporalio/common": "file:~/src/temporalio/sdk-typescript/packages/common",
+    "@temporalio/proto": "file:~/src/temporalio/sdk-typescript/packages/proto",
+    "@temporalio/worker": "file:~/src/temporalio/sdk-typescript/packages/worker",
+    "@temporalio/workflow": "file:~/src/temporalio/sdk-typescript/packages/workflow",
     "@tsconfig/node16": "^1.0.2",
     "@typescript-eslint/eslint-plugin": "^4.30.0",
     "@typescript-eslint/parser": "^4.30.0",
