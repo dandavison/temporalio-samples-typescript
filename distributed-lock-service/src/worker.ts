@@ -1,15 +1,10 @@
-import { Connection, Client } from '@temporalio/client';
 import { Worker } from '@temporalio/worker';
-import * as activities from './activities';
+import { taskQueue } from './shared';
 
 async function run() {
-  const connection = await Connection.connect();
-  const client = new Client({ connection });
-
   const worker = await Worker.create({
     workflowsPath: require.resolve('./workflows'),
-    activities: activities.createActivities(client),
-    taskQueue: 'mutex',
+    taskQueue,
   });
 
   await worker.run();

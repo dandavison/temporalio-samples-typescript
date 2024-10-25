@@ -1,4 +1,4 @@
-import { defineQuery, defineSignal } from '@temporalio/workflow';
+import { defineQuery, defineUpdate } from '@temporalio/workflow';
 
 export interface LockRequest {
   initiatorId: string;
@@ -6,9 +6,9 @@ export interface LockRequest {
 }
 
 interface LockResponse {
-  releaseSignalName: string;
+  token: string;
 }
 
 export const currentWorkflowIdQuery = defineQuery<string | null>('current-workflow-id');
-export const lockRequestSignal = defineSignal<[LockRequest]>('lock-requested');
-export const lockAcquiredSignal = defineSignal<[LockResponse]>('lock-acquired');
+export const acquireLock = defineUpdate<LockResponse, [LockRequest]>('acquire-lock');
+export const taskQueue = 'lock-service';

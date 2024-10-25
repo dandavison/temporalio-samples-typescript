@@ -1,6 +1,7 @@
 import { Connection, Client } from '@temporalio/client';
-import { oneAtATimeWorkflow } from './workflows';
 import { nanoid } from 'nanoid';
+import { lockWorkflow } from './workflows';
+import { acquireLock } from './shared';
 
 const resourceId = process.argv[2];
 if (!resourceId) {
@@ -16,11 +17,22 @@ async function run() {
 
   console.log('Starting test workflow with id', workflowId, 'connecting to lock workflow', resourceId);
   const start = Date.now();
-  await client.workflow.execute(oneAtATimeWorkflow, {
-    taskQueue: 'mutex',
-    workflowId,
-    args: [resourceId, 5000, 7500],
-  });
+
+  const uws = false;
+  if (uws) {
+  } else {
+    const wfHandle = await client.workflow.start(lockWorkflow, {
+      workflowId,
+      args: [],
+      taskQueue: 'lock-service',
+    });
+    const lock = await wfHandle.executeUpdate(acquireLock, {
+      args: [{ initiatorId: 'client-1', timeoutMs: 500 }],
+    });
+  }
+  console.log('acquired lock');
+  await useAPIThatCantBeCalledInParallel(5000);
+  // TODO: release
   console.log('Test workflow finished after', Date.now() - start, 'ms');
 }
 
@@ -28,3 +40,8 @@ run().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
+async function useAPIThatCantBeCalledInParallel(sleepForMs: number): Promise<void> {
+  // Fake an activity with a critical path that can't run in parallel
+  await new Promise((f) => setTimeout(f, sleepForMs));
+}
