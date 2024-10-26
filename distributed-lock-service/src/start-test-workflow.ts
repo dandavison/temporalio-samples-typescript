@@ -1,4 +1,4 @@
-import { Connection, Client } from '@temporalio/client';
+import { Connection, Client, WorkflowIdReusePolicy } from '@temporalio/client';
 import { nanoid } from 'nanoid';
 import { lockWorkflow } from './workflows';
 import { acquireLock } from './shared';
@@ -18,8 +18,19 @@ async function run() {
   console.log('Starting test workflow with id', workflowId, 'connecting to lock workflow', resourceId);
   const start = Date.now();
 
-  const uws = false;
+  const uws = true;
   if (uws) {
+    const lazyStart = client.workflow.start(lockWorkflow, {
+      workflowId,
+      taskQueue: 'lock-service',
+      lazy: true,
+    });
+    const lock = await lazyStart.then((wfHandle) =>
+      wfHandle.executeUpdate(acquireLock, {
+        args: [{ initiatorId: 'client-1', timeoutMs: 500 }],
+      })
+    );
+    console.log(`acquired lock: ${lock.token}`);
   } else {
     const wfHandle = await client.workflow.start(lockWorkflow, {
       workflowId,
@@ -29,8 +40,8 @@ async function run() {
     const lock = await wfHandle.executeUpdate(acquireLock, {
       args: [{ initiatorId: 'client-1', timeoutMs: 500 }],
     });
+    console.log(`acquired lock: ${lock.token}`);
   }
-  console.log('acquired lock');
   await useAPIThatCantBeCalledInParallel(5000);
   // TODO: release
   console.log('Test workflow finished after', Date.now() - start, 'ms');
