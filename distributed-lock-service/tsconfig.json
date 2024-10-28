@@ -2,6 +2,7 @@
   "extends": "@tsconfig/node16/tsconfig.json",
   "version": "4.4.2",
   "compilerOptions": {
+    "moduleResolution": "Node16",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
