@@ -12,11 +12,10 @@ async function run() {
   const client = new Client({ connection });
   const workflowId = 'transaction-' + transactionID;
 
-  const transaction = client.workflow.start(transactionWorkflow, {
+  const transaction = client.workflow.withStart(transactionWorkflow, {
     workflowId,
     args: [transactionID],
     taskQueue: 'early-return',
-    lazy: true,
   });
 
   const earlyConfirmation = await transaction.executeUpdate(getTransactionConfirmation);
