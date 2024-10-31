@@ -1,17 +1,17 @@
-import { condition, continueAsNew, setHandler, workflowInfo, uuid4 } from '@temporalio/workflow';
-import { LockRequest, currentWorkflowIdQuery, acquireLock } from './shared';
+import { condition, setHandler, workflowInfo, ApplicationFailure } from '@temporalio/workflow';
+import { LockRequest, currentLockHolder, acquireLock } from './shared';
 
-export async function lockWorkflow(requests = Array<LockRequest>()): Promise<void> {
-  let currentWorkflowId: string | null = null;
-  setHandler(acquireLock, (req: LockRequest) => {
-    requests.push(req);
-    // TODO: actually implement the lock service. For now we give a lock to anyone who asks.
-    return { token: uuid4() };
+export async function lockWorkflow(): Promise<void> {
+  let lockHolder: string | undefined;
+  const requests: [string, (token: number) => void][] = [];
+  setHandler(acquireLock, async (req: LockRequest) => {
+    const token = await new Promise<number>((f) => requests.push([req.clientId, f]));
+    return { token };
   });
-  setHandler(currentWorkflowIdQuery, () => currentWorkflowId);
+  setHandler(currentLockHolder, () => lockHolder);
   while (!workflowInfo().continueAsNewSuggested) {
     await condition(() => requests.length > 0);
-    const req = requests.shift()!;
+    const waker = requests.shift()!;
   }
-  await continueAsNew<typeof lockWorkflow>(requests);
+  throw new ApplicationFailure('TODO: support ContinueAsNew');
 }

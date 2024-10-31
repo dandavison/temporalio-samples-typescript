@@ -1,14 +1,15 @@
+import { Duration } from '@temporalio/common';
 import { defineQuery, defineUpdate } from '@temporalio/workflow';
 
 export interface LockRequest {
-  initiatorId: string;
-  timeoutMs: number;
+  clientId: string;
+  timeout: Duration;
 }
 
 interface LockResponse {
-  token: string;
+  token: number;
 }
 
-export const currentWorkflowIdQuery = defineQuery<string | null>('current-workflow-id');
+export const currentLockHolder = defineQuery<string | undefined>('current-workflow-id');
 export const acquireLock = defineUpdate<LockResponse, [LockRequest]>('acquire-lock');
 export const taskQueue = 'lock-service';
