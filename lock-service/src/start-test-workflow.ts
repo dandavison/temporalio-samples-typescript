@@ -15,15 +15,22 @@ async function run() {
 
   const workflowId = 'test-' + nanoid();
 
-  const lockService = client.workflow.withStart(lockWorkflow, {
-    workflowId,
-    workflowIdConflictPolicy: WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING,
-    taskQueue: 'lock-service',
-  });
+  const startOp = {
+    workflowTypeOrFunc: lockWorkflow,
+    options: {
+      workflowId,
+      workflowIdConflictPolicy: 'USE_EXISTING',
+      taskQueue: 'lock-service',
+    },
+  };
 
-  const lock = await lockService.executeUpdate(acquireLock, {
-    args: [{ initiatorId: 'client-1', timeoutMs: 500 }],
-  });
+  const lock = await client.workflow.executeUpdateWithStart(
+    acquireLock,
+    {
+      args: [{ clientId: 'client-1', timeout: '500ms' }],
+    },
+    startOp
+  );
 
   console.log(`acquired lock: ${lock.token}`);
 
