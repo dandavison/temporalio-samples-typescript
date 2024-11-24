@@ -1,4 +1,4 @@
-import { Connection, Client, WorkflowIdConflictPolicy } from '@temporalio/client';
+import { Connection, Client, WorkflowIdConflictPolicy, StartWorkflowOperation } from '@temporalio/client';
 import { nanoid } from 'nanoid';
 import { lockWorkflow } from './workflows';
 import { acquireLock } from './shared';
@@ -15,22 +15,16 @@ async function run() {
 
   const workflowId = 'test-' + nanoid();
 
-  const startOp = {
-    workflowTypeOrFunc: lockWorkflow,
-    options: {
-      workflowId,
-      workflowIdConflictPolicy: 'USE_EXISTING',
-      taskQueue: 'lock-service',
-    },
-  };
+  const startOp = new StartWorkflowOperation(lockWorkflow, {
+    workflowId,
+    workflowIdConflictPolicy: 'USE_EXISTING',
+    taskQueue: 'lock-service',
+  });
 
-  const lock = await client.workflow.executeUpdateWithStart(
-    acquireLock,
-    {
-      args: [{ clientId: 'client-1', timeout: '500ms' }],
-    },
-    startOp
-  );
+  const lock = await client.workflow.executeUpdateWithStart(acquireLock, {
+    args: [{ clientId: 'client-1', timeout: '500ms' }],
+    startWorkflowOperation: startOp,
+  });
 
   console.log(`acquired lock: ${lock.token}`);
 

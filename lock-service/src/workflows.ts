@@ -11,7 +11,9 @@ export async function lockWorkflow(): Promise<void> {
   setHandler(currentLockHolder, () => lockHolder);
   while (!workflowInfo().continueAsNewSuggested) {
     await condition(() => requests.length > 0);
-    const waker = requests.shift()!;
+    const [clientId, waker] = requests.shift()!;
+    lockHolder = clientId;
+    waker(1);
   }
   throw new ApplicationFailure('TODO: support ContinueAsNew');
 }
